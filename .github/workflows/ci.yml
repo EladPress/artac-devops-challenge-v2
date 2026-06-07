@@ -68,6 +68,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # GHCR requires lowercase registry + image names, but github.repository
+      # keeps the repo's original casing. Lowercase both for later steps.
+      - name: Normalize registry/image name to lowercase
+        run: |
+          echo "REGISTRY=${REGISTRY,,}" >> "$GITHUB_ENV"
+          echo "IMAGE_NAME=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -114,6 +121,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # GHCR requires lowercase registry + image names, but github.repository
+      # keeps the repo's original casing. Lowercase both for later steps.
+      - name: Normalize registry/image name to lowercase
+        run: |
+          echo "REGISTRY=${REGISTRY,,}" >> "$GITHUB_ENV"
+          echo "IMAGE_NAME=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
       - name: Build image for scanning
         run: docker build -t ${{ env.IMAGE_NAME }}:scan .
