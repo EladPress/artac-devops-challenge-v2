@@ -23,3 +23,8 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Node / semantic-release (installed transiently in CI)
+node_modules/
+package-lock.json
+
