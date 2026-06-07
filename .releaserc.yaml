@@ -1,0 +1,18 @@
+branches:
+  - main
+
+# Use the Conventional Commits preset so feat: / fix: / BREAKING CHANGE drive bumps.
+preset: conventionalcommits
+
+plugins:
+  # Decide the release type (major/minor/patch) from commit messages.
+  - "@semantic-release/commit-analyzer"
+  - "@semantic-release/release-notes-generator"
+  - - "@semantic-release/changelog"
+    - changelogFile: docs/CHANGELOG.md
+      changelogTitle: "# Changelog\n\nAll notable changes to this project are documented here.\nThis file is maintained automatically by [semantic-release](https://github.com/semantic-release/semantic-release)."
+  - "@semantic-release/github"
+  - - "@semantic-release/git"
+    - assets:
+        - docs/CHANGELOG.md
+      message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"

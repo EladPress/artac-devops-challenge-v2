@@ -1,0 +1,52 @@
+name: Release
+on:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history is required for semantic-release to read tags/commits.
+          fetch-depth: 0
+          # Use the default token explicitly so the changelog commit is pushed.
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install semantic-release
+        run: |
+          npm install --no-save \
+            semantic-release@24 \
+            @semantic-release/changelog@6 \
+            @semantic-release/git@10 \
+            conventional-changelog-conventionalcommits@8
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+          IS_DEFAULT: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          if [ "$IS_DEFAULT" = "true" ]; then
+            npx semantic-release
+          else
+            echo "Branch '$BRANCH' is not the release branch — running dry-run preview."
+            npx semantic-release --dry-run --branches="$BRANCH"
+          fi
