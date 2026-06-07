@@ -3,6 +3,13 @@
 All notable changes to this project are documented here.
 This file is maintained automatically by [semantic-release](https://github.com/semantic-release/semantic-release).
 
+## [1.0.1](https://github.com/EladPress/artac-devops-challenge-v2/compare/v1.0.0...v1.0.1) (2026-06-07)
+
+### Bug Fixes
+
+* Adding build and push stage permissions to push image ([4779b51](https://github.com/EladPress/artac-devops-challenge-v2/commit/4779b516ce3d89d1d756b4cb83d4789329c0dff4))
+* For now push all images so I can test them without merging to main ([c36a722](https://github.com/EladPress/artac-devops-challenge-v2/commit/c36a72225ce78999c9795d642bf1ea3a1572e9c9))
+
 ## 1.0.0 (2026-06-07)
 
 ### Features
