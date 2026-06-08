@@ -5,8 +5,6 @@ WORKDIR /app
 COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# COPY . .
-
 RUN useradd --system --no-create-home appuser
 USER appuser
 

@@ -19,3 +19,7 @@ I switched the health checks to poll `/ready` because it's the actual condition 
 
 # .dockerignore | Type: needs improvement
 A .dockerignore file was missing, which caused a lot of needless file to be copied into the image, so a "[.dockerignore](.dockerignore)" file was added
+
+# Single-stage build | Type: intentional tradeoff
+This is not actually a trade off, the image should not be built with another stage, as there isn't anything that needs to be compiled or built before copying everything into the final image.
+Building the project as a whl or any equivalent seems unneccessary because the project is very small and distributing the code itself is not relevant.
