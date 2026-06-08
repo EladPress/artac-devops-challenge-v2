@@ -1,0 +1,11 @@
+# Ignore everything by default
+*
+
+# Re-include only what the runtime image needs
+!app/
+!models/
+!requirements.txt
+
+# Drop caches that may live inside whitelisted dirs
+**/__pycache__/
+**/*.py[cod]

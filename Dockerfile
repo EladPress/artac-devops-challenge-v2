@@ -1,11 +1,11 @@
-FROM python:3.12
+FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# COPY . .
 
 RUN useradd --system --no-create-home appuser
 USER appuser

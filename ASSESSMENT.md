@@ -13,3 +13,9 @@ My solution was to raise the version in "[requirements.txt](requirements.txt)" t
 "[DECISIONS.md](DECISIONS.md)" explains under "Docker Image" that both `/health` and `ready` return 200 so either works. That's true for now, because the model loading is baked inside the startup of the server's startup, so it will immediately become ready as soon as it becomes alive. 
 
 I switched the health checks to poll `/ready` because it's the actual condition of the application being ready for use, and it makes the image more robust if further changes to the application separate the startup logic.
+
+# Base image | Type: intentional tradeoff
+"[DECISIONS.md](DECISIONS.md)" explains under "Docker Image" that the base image is python:3.12 because the slim was causing issues with some native dependencies during `pip install`. I did not experience any issues the the slim image works just fine. In any case, the reduction in image size is significant and in my opinion is worth a bit of debugging, or a multi stage build.
+
+# .dockerignore | Type: needs improvement
+A .dockerignore file was missing, which caused a lot of needless file to be copied into the image, so a "[.dockerignore](.dockerignore)" file was added
