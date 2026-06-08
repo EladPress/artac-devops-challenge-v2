@@ -27,3 +27,9 @@ A .dockerignore file was missing, which caused a lot of needless file to be copi
 # Single-stage build | Type: intentional tradeoff
 This is not actually a trade off, the image should not be built with another stage, as there isn't anything that needs to be compiled or built before copying everything into the final image.
 Building the project as a whl or any equivalent seems unneccessary because the project is very small and distributing the code itself is not relevant.
+
+## CI/CD
+
+# Image pushed before testing | Type: bug
+The CI process pushed the Docker image before testing/security checks could verify the image is safe to deploy.
+I fixed this by building the image, uploading it as an artifact, downloading it for the security-scan stage, and only after verifying all tests and scans passed the image will be given tags and pushed.

@@ -16,9 +16,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ── Step 1: Release ───────────────────────────────────────────────────────
-  # Runs first. On a push to main it cuts a real release (tag, GitHub release,
-  # changelog commit). On any other push/PR it only previews the next version.
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
@@ -59,45 +56,32 @@ jobs:
             npx semantic-release --dry-run --branches="$BRANCH"
           fi
 
-  # ── Step 2: CI ────────────────────────────────────────────────────────────
-  # Everything below `needs: [release]`, so CI only runs once Release succeeds.
   build:
     name: Build Image
     needs: [release]
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
-
-      # GHCR requires lowercase registry + image names, but github.repository
-      # keeps the repo's original casing. Lowercase both for later steps.
-      - name: Normalize registry/image name to lowercase
-        run: |
-          echo "REGISTRY=${REGISTRY,,}" >> "$GITHUB_ENV"
-          echo "IMAGE_NAME=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          push: false
+          tags: app:ci
+          outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image.tar
+          retention-days: 1
 
   test:
     name: Run Tests
@@ -122,30 +106,63 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
 
-      # GHCR requires lowercase registry + image names, but github.repository
-      # keeps the repo's original casing. Lowercase both for later steps.
-      - name: Normalize registry/image name to lowercase
-        run: |
-          echo "REGISTRY=${REGISTRY,,}" >> "$GITHUB_ENV"
-          echo "IMAGE_NAME=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
-
-      - name: Build image for scanning
-        run: docker build -t ${{ env.IMAGE_NAME }}:scan .
+      - name: Load image
+        run: docker load --input /tmp/image.tar
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:scan
+          image-ref: app:ci
           format: table
           exit-code: 1
           ignore-unfixed: true
           severity: CRITICAL
 
+  push:
+    name: Push Image
+    needs: [test, security-scan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Normalize registry/image name to lowercase
+        run: |
+          echo "REGISTRY=${REGISTRY,,}" >> "$GITHUB_ENV"
+          echo "IMAGE_NAME=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load --input /tmp/image.tar
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push
+        run: |
+          docker tag app:ci "${REGISTRY}/${IMAGE_NAME}:latest"
+          docker tag app:ci "${REGISTRY}/${IMAGE_NAME}:${{ github.sha }}"
+          docker push "${REGISTRY}/${IMAGE_NAME}:latest"
+          docker push "${REGISTRY}/${IMAGE_NAME}:${{ github.sha }}"
+
   deploy:
     name: Deploy
-    needs: [build]
+    needs: [push]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
