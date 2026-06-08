@@ -7,6 +7,8 @@
 I disagree with this descision because the model was "pickled" with scikit-learn v1.8.0, so the package being too old was breaking the application.
 My solution was to raise the version in "[requirements.txt](requirements.txt)" to v1.8.0
 
+LATER NOTE: This also fixed the the "Run Tests" Job in our CI process.
+
 ## Docker Image
 
 # Health Checks | Type: needs improvement
@@ -16,6 +18,8 @@ I switched the health checks to poll `/ready` because it's the actual condition 
 
 # Base image | Type: intentional tradeoff
 "[DECISIONS.md](DECISIONS.md)" explains under "Docker Image" that the base image is python:3.12 because the slim was causing issues with some native dependencies during `pip install`. I did not experience any issues the the slim image works just fine. In any case, the reduction in image size is significant and in my opinion is worth a bit of debugging, or a multi stage build.
+
+LATER NOTE: This also seemed to remove a CRITICAL vulnerability in the project. The slimmer image simply did not include it.
 
 # .dockerignore | Type: needs improvement
 A .dockerignore file was missing, which caused a lot of needless file to be copied into the image, so a "[.dockerignore](.dockerignore)" file was added
