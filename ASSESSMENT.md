@@ -33,3 +33,6 @@ Building the project as a whl or any equivalent seems unneccessary because the p
 # Image pushed before testing | Type: bug
 The CI process pushed the Docker image before testing/security checks could verify the image is safe to deploy.
 I fixed this by building the image, uploading it as an artifact, downloading it for the security-scan stage, and only after verifying all tests and scans passed the image will be given tags and pushed.
+
+# Upgrading actions versions | Type: needs improvement
+The CI results showed warnings that the actions used had Node20 which was getting deprecated from use in GitHub Actions. I upgraded these actions' versions and validated the CI process still works.
