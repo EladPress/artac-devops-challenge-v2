@@ -92,7 +92,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          # Only publish the image on a real push to main.
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
