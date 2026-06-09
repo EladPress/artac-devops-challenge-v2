@@ -42,3 +42,8 @@ The Trivy job in "[ci.yml](ci.yml)" was watching the action's master branch, whi
 
 # Non Existent Smoke Test | Type: needs improvement
 "[DECISIONS.md](DECISIONS.md)" mentions a "CI smoke test" but it didn't really exist in "[ci.yml](ci.yml)". There is of course the "Run Tests" job but it doesn't really qualify, as it only runs the python code, instead of testing the entire stack, which includes deploying the Docker Image. I added a smoke test job that deploys the image and checks all three endpoints.
+
+# Trivy ignores HIGH severity vulnerabilies | Type: intentional tradeoff
+"[DECISIONS.md](DECISIONS.md)" mentions that Trivy was intentionally being made to ignore all vulnerabilites. This is a temporary fix only to pass the build, so I fixed this.
+I believed HIGH and CRITICAL vulnerabilities should automatically fail the build and LOW and MEDIUM should pass the build but be reported.
+Because Trivy can't have a different exit code for different severities of vulnerabilities I divided the Trivy scan to two portions: one that does a full scan and uploads an artifact with the full results, and a second one that fails the build if a HIGH or CRITICAL vulnerability exists
