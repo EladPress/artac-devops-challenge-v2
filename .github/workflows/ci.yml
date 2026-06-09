@@ -68,6 +68,7 @@ jobs:
           context: .
           push: false
           tags: app:ci
+          labels: org.opencontainers.image.revision=${{ github.sha }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max

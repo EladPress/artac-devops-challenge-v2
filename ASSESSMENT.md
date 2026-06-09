@@ -50,4 +50,7 @@ Because Trivy can't have a different exit code for different severities of vulne
 I kept ignoring unfixed vulnerabilities, because these can't be actioned upon. This is a tradeoff I made for now, this is not set in stone, of course a vulnerability can be avoided instead of fixed.
 
 # Fixed HIGH vulnerability | Type: bug
-While stopping Trivy from ignoring HIGH and CRITICAL vulnerabilites, a HIGH severity vulnerability was found in "starlette" which fastapi uses. As a fix, I upgraded fastapi to a version high enough that includes a fixed version of "starlette". I could have chosen the latest version of fastapi but I chose a more conservative version, as I felt this was outside the scope of the assignment. 
+While stopping Trivy from ignoring HIGH and CRITICAL vulnerabilites, a HIGH severity vulnerability was found in "starlette" which fastapi uses. As a fix, I upgraded fastapi to a version high enough that includes a fixed version of "starlette". I could have chosen the latest version of fastapi but I chose a more conservative version, as I felt this was outside the scope of the assignment.
+
+# Image naming convention | Type: Needs improvement
+This is an architecture choice of mine. I feel commit hashes as image tags are not human readable. Using Semantic Release, each release/prerelease iamge will have their semantic version as a tag which of course matches the git tag. All images will also have the tag: {BRANCH_NAME-BUILD_INCREMENT} and will have the label: org.opencontainers.image.revision=${commit_hash}
