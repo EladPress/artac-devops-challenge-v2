@@ -38,4 +38,7 @@ I fixed this by building the image, uploading it as an artifact, downloading it 
 The CI results showed warnings that the actions used had Node20 which was getting deprecated from use in GitHub Actions. I upgraded these actions' versions and validated the CI process still works.
 
 # Locking Trivy version | Type: needs improvement
-The Trivy job in "[DECISIONS.md](DECISIONS.md)" was watching the action's master branch, which keeps getting new versions, and this is a risk because breaking changes can appear that we are not aware of. As a solution, I locked the Trivy version to 0.36.0 which is as of writing the latest.
+The Trivy job in "[ci.yml](ci.yml)" was watching the action's master branch, which keeps getting new versions, and this is a risk because breaking changes can appear that we are not aware of. As a solution, I locked the Trivy version to 0.36.0 which is as of writing the latest.
+
+# Non Existent Smoke Test | Type: needs improvement
+"[DECISIONS.md](DECISIONS.md)" mentions a "CI smoke test" but it didn't really exist in "[ci.yml](ci.yml)". There is of course the "Run Tests" job but it doesn't really qualify, as it only runs the python code, instead of testing the entire stack, which includes deploying the Docker Image. I added a smoke test job that deploys the image and checks all three endpoints.
