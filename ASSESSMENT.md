@@ -54,3 +54,17 @@ While stopping Trivy from ignoring HIGH and CRITICAL vulnerabilites, a HIGH seve
 
 # Image naming convention | Type: Needs improvement
 This is an architecture choice of mine. I feel commit hashes as image tags are not human readable. Using Semantic Release, each release/prerelease iamge will have their semantic version as a tag which of course matches the git tag. All images will also have the tag: {BRANCH_NAME-BUILD_INCREMENT} and will have the label: org.opencontainers.image.revision=${commit_hash}
+
+## Infrastructure
+
+# Choice of deploying on EC2 | Type: intentional tradeoff
+This project is deployed on EC2, which to me seemed weird as we're deploying a Docker image, why not deploy using AWS ECS?
+I reached the conclusion that ECS may be overkill for this assignment, and for a single application an EC2 instance that runs Docker is good enough.
+
+# AMI deprecated | Type: bug
+The AMI image specified for the EC2 instance in "[main.tf](terraform/main.tf)" was deprecated.
+A fix was irrelevant because of the next change:
+
+# Region-agnostic AMI | Type: needs improvement
+In "[main.tf](terraform/main.tf)" the AMI ID was hardcoded, while the AWS region wasn't. This works when not changing region from "us-east-1" but because of AMIs being region-specific, switching regions would not work.
+My solution was to get the ID of the Ubuntu image we require and then use it in the EC2 instance.
