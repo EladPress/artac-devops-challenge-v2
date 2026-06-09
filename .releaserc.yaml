@@ -1,5 +1,7 @@
 branches:
   - main
+  - name: dev
+    prerelease: true
 
 # Use the Conventional Commits preset so feat: / fix: / BREAKING CHANGE drive bumps.
 preset: conventionalcommits
