@@ -19,6 +19,8 @@ jobs:
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.semantic-release.outputs.new_version }}
     # Only this job needs write access (to push the changelog + create releases).
     permissions:
       contents: write
@@ -42,6 +44,7 @@ jobs:
             conventional-changelog-conventionalcommits@8
 
       - name: Run semantic-release
+        id: semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # head_ref is set on PRs (source branch); ref_name on pushes.
@@ -49,12 +52,15 @@ jobs:
           # Real release only on a direct push to main; everything else previews.
           IS_RELEASE: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
         run: |
+          set -o pipefail
           if [ "$IS_RELEASE" = "true" ]; then
-            npx semantic-release
+            npx semantic-release 2>&1 | tee /tmp/sr-output.txt
           else
             echo "Not a push to main — running dry-run preview for '$BRANCH'."
-            npx semantic-release --dry-run --branches="$BRANCH"
+            npx semantic-release --dry-run --branches="$BRANCH" 2>&1 | tee /tmp/sr-output.txt
           fi
+          new_version=$(grep -oP "(?<=The next release version is )[^\s]+" /tmp/sr-output.txt | head -1 || true)
+          echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build Image
@@ -187,7 +193,7 @@ jobs:
 
   push:
     name: Push Image
-    needs: [test, security-scan, smoke-test]
+    needs: [release, test, security-scan, smoke-test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -215,12 +221,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Tag and push
+      - name: Tag and push (branch build)
         run: |
-          docker tag app:ci "${REGISTRY}/${IMAGE_NAME}:latest"
-          docker tag app:ci "${REGISTRY}/${IMAGE_NAME}:${{ github.sha }}"
-          docker push "${REGISTRY}/${IMAGE_NAME}:latest"
-          docker push "${REGISTRY}/${IMAGE_NAME}:${{ github.sha }}"
+          SAFE_BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          BRANCH_TAG="${SAFE_BRANCH}-${{ github.run_number }}"
+          docker tag app:ci "${REGISTRY}/${IMAGE_NAME}:${BRANCH_TAG}"
+          docker push "${REGISTRY}/${IMAGE_NAME}:${BRANCH_TAG}"
+
+      - name: Tag and push (version)
+        if: needs.release.outputs.new_version != ''
+        run: |
+          docker tag app:ci "${REGISTRY}/${IMAGE_NAME}:${{ needs.release.outputs.new_version }}"
+          docker push "${REGISTRY}/${IMAGE_NAME}:${{ needs.release.outputs.new_version }}"
 
       - name: Delete image artifact
         env:
