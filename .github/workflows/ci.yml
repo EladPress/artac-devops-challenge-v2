@@ -47,18 +47,8 @@ jobs:
         id: semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # head_ref is set on PRs (source branch); ref_name on pushes.
-          BRANCH: ${{ github.head_ref || github.ref_name }}
-          # Real release only on a direct push to main; everything else previews.
-          IS_RELEASE: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
         run: |
-          set -o pipefail
-          if [ "$IS_RELEASE" = "true" ]; then
-            npx semantic-release 2>&1 | tee /tmp/sr-output.txt
-          else
-            echo "Not a push to main — running dry-run preview for '$BRANCH'."
-            npx semantic-release --dry-run --branches="$BRANCH" 2>&1 | tee /tmp/sr-output.txt
-          fi
+          npx semantic-release 2>&1 | tee /tmp/sr-output.txt
           new_version=$(grep -oP "(?<=The next release version is )[^\s]+" /tmp/sr-output.txt | head -1 || true)
           echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
 
