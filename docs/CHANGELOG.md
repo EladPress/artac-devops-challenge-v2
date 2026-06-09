@@ -3,6 +3,25 @@
 All notable changes to this project are documented here.
 This file is maintained automatically by [semantic-release](https://github.com/semantic-release/semantic-release).
 
+## [1.2.0](https://github.com/EladPress/artac-devops-challenge-v2/compare/v1.1.0...v1.2.0) (2026-06-09)
+
+### Features
+
+* Changed image naming convention to branch_name-build_increment and semantic versioning for release/prerelease versions ([83b726b](https://github.com/EladPress/artac-devops-challenge-v2/commit/83b726b911bc0f240178e0487b1c3059d5e49c5c))
+* images built and push now will have a tag of the new version if exists, and the branch and build number ([6bd3958](https://github.com/EladPress/artac-devops-challenge-v2/commit/6bd3958a2bbc98d2e217160b3958d8347de3f36a))
+
+### Bug Fixes
+
+* Added a smoke test in CI process ([855dd59](https://github.com/EladPress/artac-devops-challenge-v2/commit/855dd597e9f5e1bf244ab2a8dcdc31687a5063e4))
+* Added artifact cleanup after they are not in use in ci.yml ([f6a7dd8](https://github.com/EladPress/artac-devops-challenge-v2/commit/f6a7dd85c1663468dcc10c0bba4b2e8fbe246c70))
+* Added dependabot to update actions that are about to be deprecated ([359471d](https://github.com/EladPress/artac-devops-challenge-v2/commit/359471d241e47dd22ffbdabcd1e8a632a4e2528b))
+* CI will now only push the Docker image after all tests and scans are done to prevent a flawed image from being pushed ([258fe1a](https://github.com/EladPress/artac-devops-challenge-v2/commit/258fe1a471f208e6a6d1897db7cbd9d7b2dc2e2a))
+* Divided Trivy scan so all types of vulnerabilites are reported but only HIGH and CRITICAL fail the build ([c48a38a](https://github.com/EladPress/artac-devops-challenge-v2/commit/c48a38aa3e614729beb1d1435fa215f3070cce7d))
+* Locking Trivy version in ci.yml ([c1dc8fe](https://github.com/EladPress/artac-devops-challenge-v2/commit/c1dc8fe7c1a61d874dc02e84884cb41214c0607a))
+* Removed Semantic Release preview for now to allow proper image tagging only on release branches ([d426d3b](https://github.com/EladPress/artac-devops-challenge-v2/commit/d426d3bef1eec4eba03af9798d4f90894ab9f4b5))
+* Updated actions version because of Node20 becoming deprecated ([84da2d2](https://github.com/EladPress/artac-devops-challenge-v2/commit/84da2d276313a1391a8f3b6c179e0a94c3620e3d))
+* Upgraded to a higher fastapi version to fix HIGH vulnerability with its dependency, 'starlette' ([4bf4d96](https://github.com/EladPress/artac-devops-challenge-v2/commit/4bf4d964799c1fb8f333e211dd593860d6670dfe))
+
 ## [1.2.0-dev.1](https://github.com/EladPress/artac-devops-challenge-v2/compare/v1.1.0...v1.2.0-dev.1) (2026-06-09)
 
 ### Features
