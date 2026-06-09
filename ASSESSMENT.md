@@ -55,6 +55,11 @@ While stopping Trivy from ignoring HIGH and CRITICAL vulnerabilites, a HIGH seve
 # Image naming convention | Type: Needs improvement
 This is an architecture choice of mine. I feel commit hashes as image tags are not human readable. Using Semantic Release, each release/prerelease iamge will have their semantic version as a tag which of course matches the git tag. All images will also have the tag: {BRANCH_NAME-BUILD_INCREMENT} and will have the label: org.opencontainers.image.revision=${commit_hash}
 
+# Image only built for amd64 | Type: intentional tradeoff
+While the images are mostly running on amd64, A lot of developers use ARM based Macs, so I thought it important to include an amd64 native image along with the standard amd64 image.
+But I decided to keep only building amd64 images because I reached the conclusion that the changed needed to make two images would mean a large change of the CI process, which I decided was outside of the scope of this mission.
+The reason the tradeoff is valid in my opinion is the production environments run on amd64 anyway, and Macs can run amd64 images via emulation (A simple flag in the docker run command allows Macs to run amd64 images).
+
 ## Infrastructure
 
 # Choice of deploying on EC2 | Type: intentional tradeoff

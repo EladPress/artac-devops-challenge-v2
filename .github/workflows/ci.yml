@@ -58,7 +58,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-## TODO: BUILD FOR BOTH AMD AND ARM, document 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Build image
