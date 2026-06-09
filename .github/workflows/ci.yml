@@ -16,25 +16,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ── Step 1: Release ───────────────────────────────────────────────────────
-  # Runs first. On a push to main it cuts a real release (tag, GitHub release,
-  # changelog commit). On any other push/PR it only previews the next version.
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.semantic-release.outputs.new_version }}
     # Only this job needs write access (to push the changelog + create releases).
     permissions:
       contents: write
       issues: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # full history so semantic-release can read tags/commits
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install semantic-release
         run: |
@@ -45,69 +44,51 @@ jobs:
             conventional-changelog-conventionalcommits@8
 
       - name: Run semantic-release
+        id: semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # head_ref is set on PRs (source branch); ref_name on pushes.
-          BRANCH: ${{ github.head_ref || github.ref_name }}
-          # Real release only on a direct push to main; everything else previews.
-          IS_RELEASE: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
         run: |
-          if [ "$IS_RELEASE" = "true" ]; then
-            npx semantic-release
-          else
-            echo "Not a push to main — running dry-run preview for '$BRANCH'."
-            npx semantic-release --dry-run --branches="$BRANCH"
-          fi
+          npx semantic-release 2>&1 | tee /tmp/sr-output.txt
+          new_version=$(grep -oP "(?<=The next release version is )[^\s]+" /tmp/sr-output.txt | head -1 || true)
+          echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
 
-  # ── Step 2: CI ────────────────────────────────────────────────────────────
-  # Everything below `needs: [release]`, so CI only runs once Release succeeds.
   build:
     name: Build Image
     needs: [release]
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
-      - uses: actions/checkout@v4
-
-      # GHCR requires lowercase registry + image names, but github.repository
-      # keeps the repo's original casing. Lowercase both for later steps.
-      - name: Normalize registry/image name to lowercase
-        run: |
-          echo "REGISTRY=${REGISTRY,,}" >> "$GITHUB_ENV"
-          echo "IMAGE_NAME=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/setup-buildx-action@v4
+# TODO: finish all actions versions upgrade and document. amend to last commit faggy
+      - name: Build image
+        uses: docker/build-push-action@v7
         with:
           context: .
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          push: false
+          tags: app:ci
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-image
+          path: /tmp/image.tar
+          retention-days: 1
 
   test:
     name: Run Tests
     needs: [build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -122,30 +103,139 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Download image artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: docker-image
+          path: /tmp
 
-      # GHCR requires lowercase registry + image names, but github.repository
-      # keeps the repo's original casing. Lowercase both for later steps.
+      - name: Load image
+        run: docker load --input /tmp/image.tar
+
+      - name: Run Trivy vulnerability scanner (full report)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: app:ci
+          format: table
+          output: trivy-results.txt
+          exit-code: 0
+          ignore-unfixed: true
+          severity: LOW,MEDIUM,HIGH,CRITICAL
+
+      - name: Upload Trivy results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-results
+          path: trivy-results.txt
+          retention-days: 30
+
+      - name: Fail on HIGH or CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: app:ci
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
+  smoke-test:
+    name: Smoke Test
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load --input /tmp/image.tar
+
+      - name: Start container
+        run: docker run -d --name smoke -p 8080:8080 app:ci
+
+      - name: Wait for container to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/ready; then
+              echo "Container is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container failed to become ready in 60s"
+          docker logs smoke
+          exit 1
+
+      - name: Test /health endpoint
+        run: curl --fail http://localhost:8080/health
+
+      - name: Test /predict endpoint
+        run: |
+          curl --fail -X POST http://localhost:8080/predict \
+            -H "Content-Type: application/json" \
+            -d '{"text": "This is a great product!"}'
+
+      - name: Stop container
+        if: always()
+        run: docker stop smoke && docker rm smoke
+
+  push:
+    name: Push Image
+    needs: [release, test, security-scan, smoke-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      actions: write
+    steps:
       - name: Normalize registry/image name to lowercase
         run: |
           echo "REGISTRY=${REGISTRY,,}" >> "$GITHUB_ENV"
           echo "IMAGE_NAME=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
-      - name: Build image for scanning
-        run: docker build -t ${{ env.IMAGE_NAME }}:scan .
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+      - name: Download image artifact
+        uses: actions/download-artifact@v8
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:scan
-          format: table
-          exit-code: 1
-          ignore-unfixed: true
-          severity: CRITICAL
+          name: docker-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load --input /tmp/image.tar
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push (branch build)
+        run: |
+          SAFE_BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          BRANCH_TAG="${SAFE_BRANCH}-${{ github.run_number }}"
+          docker tag app:ci "${REGISTRY}/${IMAGE_NAME}:${BRANCH_TAG}"
+          docker push "${REGISTRY}/${IMAGE_NAME}:${BRANCH_TAG}"
+
+      - name: Tag and push (version)
+        if: needs.release.outputs.new_version != ''
+        run: |
+          docker tag app:ci "${REGISTRY}/${IMAGE_NAME}:${{ needs.release.outputs.new_version }}"
+          docker push "${REGISTRY}/${IMAGE_NAME}:${{ needs.release.outputs.new_version }}"
+
+      - name: Delete image artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/artifacts" \
+            --jq '.artifacts[] | select(.name=="docker-image") | .id' \
+          | xargs -I{} gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/{}"
 
   deploy:
     name: Deploy
-    needs: [build]
+    needs: [push]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
