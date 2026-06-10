@@ -1,18 +1,7 @@
-# ArtAc DevOps Challenge
+# Sentiment Analysis API
 
-## Scenario
-
-A contractor built this ML prediction API and set up the initial deployment infrastructure before leaving the company. The application works, but the deployment setup was never fully validated or hardened for production. Some things are broken, some are intentional trade-offs, and some might need improvement.
-
-**Your job is to take ownership of this codebase**: get it running, assess the current state of everything the contractor left behind, fix what needs fixing, and make it production-ready.
-
-The contractor left a [`DECISIONS.md`](DECISIONS.md) file documenting some of their choices. Read it carefully — but don't assume everything in it is correct.
-
----
-
-## The Application
-
-A FastAPI service that serves a pre-trained scikit-learn sentiment classifier.
+A FastAPI service that serves a pre-trained scikit-learn sentiment classifier, packaged as a
+container image and deployed to AWS via Terraform.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -20,14 +9,45 @@ A FastAPI service that serves a pre-trained scikit-learn sentiment classifier.
 | `/health` | GET | Liveness probe — returns 200 if the server process is running |
 | `/ready` | GET | Readiness probe — returns 200 only after the model is loaded and ready to serve |
 
-**Run locally (without Docker):**
+The service listens on port **8080**.
+
+---
+
+## Repository layout
+
+| Path | Purpose |
+|------|---------|
+| `app/` | Application source (FastAPI app + model loading) — unmodified |
+| `models/` | Pre-trained scikit-learn model — unmodified |
+| `tests/` | Unit tests for the API and model |
+| `Dockerfile` | Production container image |
+| `.dockerignore` | Build-context exclusions |
+| `.github/workflows/ci.yml` | CI/CD pipeline (release → build → test/scan/smoke → push → deploy) |
+| `terraform/` | AWS infrastructure (EC2 + security group + SSM access) |
+| `requirements.txt` | Python dependencies |
+| `ASSESSMENT.md` | Assessment of the inherited codebase |
+| `AI_WORKFLOW.md` | AI tooling usage documentation |
+
+---
+
+## Run locally (without Docker)
 
 ```bash
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
 
-**Run tests:**
+Then exercise the endpoints:
+
+```bash
+curl http://localhost:8080/health
+curl http://localhost:8080/ready
+curl -X POST http://localhost:8080/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "this movie was fantastic"}'
+```
+
+## Run the tests
 
 ```bash
 pytest tests/ -v
@@ -35,85 +55,132 @@ pytest tests/ -v
 
 ---
 
-## What the Contractor Left
+## Run with Docker
 
-| File | Status |
-|------|--------|
-| `app/` | Application source code (working) |
-| `models/` | Pre-trained ML model |
-| `tests/` | Unit tests for the API and model |
-| `requirements.txt` | Python dependencies |
-| `Dockerfile` | Container image definition |
-| `.github/workflows/ci.yml` | CI/CD pipeline |
-| `terraform/` | AWS infrastructure code |
-| `DECISIONS.md` | Contractor's notes on design choices |
+Build the image:
 
----
+```bash
+docker build -t sentiment-api .
+```
 
-## Your Assignment
+Run the container:
 
-### Rules
+```bash
+docker run -d --name sentiment-api -p 8080:8080 sentiment-api
+```
 
-- **You may NOT modify files in `app/` or `models/`.** Treat the application as a black box you are deploying — this is a DevOps role, not a developer role.
-- You MAY modify everything else: `requirements.txt`, `Dockerfile`, CI/CD configs, Terraform, and any supporting files.
-- **Commit early and often.** We want to see your thought process, not a single final commit.
+> **Apple Silicon (ARM) Macs:** the published images are built for `linux/amd64` (see
+> [ASSESSMENT.md](ASSESSMENT.md)). To run a published image on an ARM Mac, add
+> `--platform linux/amd64` to the `docker run` command; Docker Desktop runs it under emulation.
 
-### Part 1: Get It Running (25%)
-
-Build the Docker image and get all three endpoints (`/health`, `/ready`, `/predict`) working correctly in the container.
-
-If something is broken, fix it. Document what you found and what you did in your assessment.
-
-### Part 2: Assess the Codebase (40%)
-
-This is the most important part.
-
-Create an **`ASSESSMENT.md`** file. For each issue or decision you find across the Dockerfile, CI/CD pipeline, and Terraform configuration:
-
-1. **What you found** — describe the issue clearly
-2. **Classification** — is this a **Bug**, an **Intentional Trade-off**, or something that **Needs Improvement**?
-3. **Contractor's reasoning** — does the `DECISIONS.md` mention it? Do you agree or disagree with their rationale?
-4. **What you did** — did you fix it, keep it, or modify it? **Why?**
-
-We're not looking for a specific number of findings. We're looking for accuracy, judgment, and justification. Flagging something that isn't actually a problem is just as bad as missing something that is.
-
-### Part 3: Production-Ready Deployment (15%)
-
-Improve the Dockerfile and deployment setup:
-- The Docker image should be production-ready in every way you can think of
-- Ensure the CI/CD pipeline works correctly end-to-end
-- The Terraform configuration should pass `terraform plan`
-
-### Part 4: AI Workflow Documentation (10%)
-
-Create an **`AI_WORKFLOW.md`** that documents:
-- Which AI tools you used and for what tasks
-- 2-3 specific examples of prompts that worked well
-- At least 1 example where AI gave you something wrong or suboptimal, and how you caught it
-- Your honest estimate of time saved vs. doing it manually
-- Total time spent on the assignment
-
-### Initiative (10%)
-
-Anything extra you think demonstrates your skills or understanding. Examples: Docker Compose for local dev, observability setup, cost analysis, deployment strategy improvements, security hardening beyond the basics.
+The container has a built-in `HEALTHCHECK` that polls `/ready`, so `docker ps` reports the
+container as healthy only once the model is loaded.
 
 ---
 
-## What to Submit
+## Container images
 
-Your forked repository should contain:
-- All original application source code (unmodified `app/` and `models/`)
-- Your improved `Dockerfile` and `.dockerignore`
-- Working CI/CD pipeline (`.github/workflows/`)
-- Terraform configuration (`terraform/`) with `plan-output.txt`
-- **`ASSESSMENT.md`** — your assessment of the inherited codebase
-- **`AI_WORKFLOW.md`** — your AI usage documentation
-- Updated `README.md` — replace this section with your own setup/deployment instructions
+Images are published to GitHub Container Registry by the CI pipeline:
+
+```
+ghcr.io/eladpress/artac-devops-challenge-v2
+```
+
+Each build is tagged with its semantic version (e.g. `:1.2.0`) and a
+`{branch}-{run-number}` tag, and carries an `org.opencontainers.image.revision` label pointing at
+the source commit. See the *Image naming convention* finding in [ASSESSMENT.md](ASSESSMENT.md).
 
 ---
 
-**You are not expected to spend any money.** Everything is achievable within AWS Free Tier and free CI/CD tooling. Use `terraform plan` to validate your infrastructure code — actual deployment to AWS is optional.
+## Deploy to AWS (Terraform)
 
-We explicitly encourage the use of AI tools throughout this assignment. What matters is not whether you used AI, but whether you understood and validated what it produced.
+The Terraform configuration in [`terraform/`](terraform/) provisions:
 
-Good luck.
+- An **EC2 instance** that installs Docker via user-data and runs the container image with a
+  `restart unless-stopped` policy.
+- A **security group** exposing only the application port (8080). SSH is intentionally not open —
+  instance access is via **AWS SSM Session Manager**.
+- An **IAM role + instance profile** granting `AmazonSSMManagedInstanceCore` so the instance is
+  reachable through SSM.
+- An encrypted, right-sized (10 GB, gp3) root volume.
+
+### Prerequisites
+
+- [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5.0
+- AWS credentials configured (e.g. `aws configure` or environment variables) with permission to
+  manage EC2, IAM, and security groups
+- The [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
+  for the AWS CLI (only needed to open a shell on the instance)
+
+### Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `aws_region` | `us-east-1` | Region to deploy to (AMI is resolved per-region automatically) |
+| `project_name` | `sentiment-api` | Prefix used for resource naming |
+| `instance_type` | `t2.micro` | EC2 instance type |
+| `app_port` | `8080` | Port the application listens on |
+| `docker_image` | *(required)* | Full image reference to deploy, e.g. `ghcr.io/<owner>/<repo>:1.2.0` |
+| `app_allowed_cidrs` | `["0.0.0.0/0"]` | CIDRs allowed to reach the application port |
+
+`docker_image` has no default, so a `terraform.tfvars` file (or `-var`) is required. An example:
+
+```hcl
+aws_region    = "il-central-1"
+instance_type = "t3.micro"
+app_port      = 8080
+docker_image  = "ghcr.io/eladpress/artac-devops-challenge-v2:1.2.0"
+```
+
+### Apply
+
+```bash
+cd terraform
+terraform init
+terraform plan      # validated output committed as terraform/plan-output.txt
+terraform apply
+```
+
+After `apply`, Terraform prints the relevant outputs:
+
+| Output | Description |
+|--------|-------------|
+| `app_url` | `http://<public-dns>:8080` — the live application URL |
+| `instance_public_ip` / `instance_public_dns` | Instance network addresses |
+| `instance_id` | EC2 instance ID |
+| `ssm_command` | Ready-to-run `aws ssm start-session` command for shell access |
+
+> If the image is private on GHCR, make it public or configure the instance with registry
+> credentials before the user-data `docker pull` will succeed.
+
+### Connect to the instance
+
+There is no SSH and no open port 22. Open a shell via SSM using the `ssm_command` output:
+
+```bash
+aws ssm start-session --target <instance-id> --region <aws_region>
+```
+
+### Tear down
+
+```bash
+terraform destroy
+```
+
+---
+
+## CI/CD
+
+The pipeline ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and PR:
+
+1. **release** — semantic-release computes the next version from conventional commits.
+2. **build** — builds the image once and uploads it as an artifact.
+3. **test / security-scan / smoke-test** — run the unit tests, run a Trivy scan (fails on
+   HIGH/CRITICAL, reports the rest), and start the container to verify all three endpoints respond.
+4. **push** — only after the above pass, tags and pushes the image to GHCR.
+5. **deploy** — gated to `main`; currently a documented placeholder (see [ASSESSMENT.md](ASSESSMENT.md)).
+
+See [ASSESSMENT.md](ASSESSMENT.md) for the rationale behind each pipeline decision and
+[AI_WORKFLOW.md](AI_WORKFLOW.md) for how AI tooling was used during this work.
+</content>
+</invoke>

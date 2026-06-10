@@ -233,11 +233,113 @@ jobs:
 
   deploy:
     name: Deploy
-    needs: [push]
+    needs: [release, push]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'il-central-1' }}
+      INSTANCE_NAME: sentiment-api-server
     steps:
-      - name: Deploy to EC2
+      # Without AWS credentials the job can't reach AWS. Skip cleanly instead of
+      # failing so the pipeline stays green until live deploy is configured.
+      - name: Check deploy is configured
+        id: gate
         run: |
-          echo "TODO: Implement deployment"
-          echo "This step should SSH into the EC2 instance and deploy the new container"
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::notice::AWS credentials not set — skipping live deploy."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure AWS credentials
+        if: steps.gate.outputs.enabled == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve image reference
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          REG="${REGISTRY,,}"
+          IMG="${IMAGE_NAME,,}"
+          if [ -n "${{ needs.release.outputs.new_version }}" ]; then
+            TAG="${{ needs.release.outputs.new_version }}"
+          else
+            TAG="main-${{ github.run_number }}"
+          fi
+          echo "IMAGE=${REG}/${IMG}:${TAG}" >> "$GITHUB_ENV"
+          echo "Deploying image: ${REG}/${IMG}:${TAG}"
+
+      - name: Find target instance
+        if: steps.gate.outputs.enabled == 'true'
+        id: find
+        run: |
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${INSTANCE_NAME}" \
+                      "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].InstanceId | [0]" \
+            --output text)
+          if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" = "None" ]; then
+            echo "::notice::No running instance named ${INSTANCE_NAME} found — nothing to deploy to."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Found instance: $INSTANCE_ID"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Roll out new container via SSM
+        if: steps.gate.outputs.enabled == 'true' && steps.find.outputs.found == 'true'
+        run: |
+          ID="${{ steps.find.outputs.instance_id }}"
+          PARAMS=$(jq -nc --arg img "$IMAGE" '{
+            commands: [
+              "set -e",
+              "docker pull \($img)",
+              "docker rm -f sentiment-api 2>/dev/null || true",
+              "docker run -d --name sentiment-api --restart unless-stopped -p 8080:8080 \($img)"
+            ]
+          }')
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy ${IMAGE}" \
+            --parameters "$PARAMS" \
+            --query "Command.CommandId" --output text)
+          echo "SSM command id: $CMD_ID"
+          sleep 5 # let the invocation register before we wait on it
+          aws ssm wait command-executed --command-id "$CMD_ID" --instance-id "$ID" || true
+          STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$ID" --query "Status" --output text)
+          echo "----- stdout -----"
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$ID" --query "StandardOutputContent" --output text
+          if [ "$STATUS" != "Success" ]; then
+            echo "----- stderr -----"
+            aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$ID" --query "StandardErrorContent" --output text
+            echo "::error::Deploy command finished with status: $STATUS"
+            exit 1
+          fi
+
+      - name: Verify rollout
+        if: steps.gate.outputs.enabled == 'true' && steps.find.outputs.found == 'true'
+        run: |
+          ID="${{ steps.find.outputs.instance_id }}"
+          DNS=$(aws ec2 describe-instances --instance-ids "$ID" \
+            --query "Reservations[].Instances[].PublicDnsName | [0]" --output text)
+          echo "Polling http://$DNS:8080/ready"
+          for i in $(seq 1 12); do
+            if curl -fsS "http://$DNS:8080/ready" >/dev/null 2>&1; then
+              echo "Service is ready."
+              exit 0
+            fi
+            echo "Attempt $i: not ready yet; retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::Service did not become ready within timeout."
+          exit 1
