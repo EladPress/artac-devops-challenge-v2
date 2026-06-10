@@ -54,3 +54,39 @@ While stopping Trivy from ignoring HIGH and CRITICAL vulnerabilites, a HIGH seve
 
 # Image naming convention | Type: Needs improvement
 This is an architecture choice of mine. I feel commit hashes as image tags are not human readable. Using Semantic Release, each release/prerelease iamge will have their semantic version as a tag which of course matches the git tag. All images will also have the tag: {BRANCH_NAME-BUILD_INCREMENT} and will have the label: org.opencontainers.image.revision=${commit_hash}
+
+# Image only built for amd64 | Type: intentional tradeoff
+While the images are mostly running on amd64, A lot of developers use ARM based Macs, so I thought it important to include an amd64 native image along with the standard amd64 image.
+But I decided to keep only building amd64 images because I reached the conclusion that the changed needed to make two images would mean a large change of the CI process, which I decided was outside of the scope of this mission.
+The reason the tradeoff is valid in my opinion is the production environments run on amd64 anyway, and Macs can run amd64 images via emulation (A simple flag in the docker run command allows Macs to run amd64 images).
+
+## Infrastructure
+
+# Choice of deploying on EC2 | Type: intentional tradeoff
+This project is deployed on EC2, which to me seemed weird as we're deploying a Docker image, why not deploy using AWS ECS?
+I reached the conclusion that ECS may be overkill for this assignment, and for a single application an EC2 instance that runs Docker is good enough.
+
+# AMI deprecated | Type: bug
+The AMI image specified for the EC2 instance in "[main.tf](terraform/main.tf)" was deprecated.
+A fix was irrelevant because of the next change:
+
+# Region-agnostic AMI | Type: needs improvement
+In "[main.tf](terraform/main.tf)" the AMI ID was hardcoded, while the AWS region wasn't. This works when not changing region from "us-east-1" but because of AMIs being region-specific, switching regions would not work.
+My solution was to get the ID of the Ubuntu image we require and then use it in the EC2 instance.
+
+# Key pair handling | Type: needs improvement
+In order to deploy the application using Terraform, a key pair had to exist before. I think a good practice to handle this specifically would have been creating a key pair with this Terraform project.
+Instead I removed the key pair because the solution to the next problem makes this solution irrelevant:
+
+# SSH ingress open wide | Type: bug
+The security group in "[main.tf](terraform/main.tf)" allowed SSH (port 22) from `0.0.0.0/0`. "[DECISIONS.md](DECISIONS.md)" admits SSH was left open. Instead of narrowing down the CIDR, I removed SSH access and moved to accessing the instance using AWS SSM Session Manager
+
+# App port left open | Type: intentional tradeoff
+After closing SSH, port 8080 (the application) remains reachable from `0.0.0.0/0`. This is intentional: it is a public API and locking it to a single IP would defeat its purpose, unlike SSH which has no legitimate public need. I made the allowed range a variable (`app_allowed_cidrs`, default `0.0.0.0/0`) so it can be scoped down per environment without a code change.
+
+# Instance type unsupported in newer regions | Type: needs improvement
+When switching regions I noticed `t2.micro` didn't exist in the newer `il-central-1` region. In order to allow the application to run on more regions I changed the instance type to `t3.micro`.
+
+# Root volume oversized and unencrypted | Type: needs improvement
+The `root_block_device` in "[main.tf](terraform/main.tf)" requested a 20 GB volume and was not encrypted.
+I right-sized the root volume to 10 GB, and added `encrypted = true` for at-rest encryption.

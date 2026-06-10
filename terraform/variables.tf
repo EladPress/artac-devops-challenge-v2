@@ -27,7 +27,8 @@ variable "docker_image" {
   type        = string
 }
 
-variable "ssh_key_name" {
-  description = "Name of the SSH key pair for EC2 access"
-  type        = string
+variable "app_allowed_cidrs" {
+  description = "CIDR blocks allowed to reach the application port"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
 }

@@ -8,12 +8,17 @@ output "instance_id" {
   value       = aws_instance.app.id
 }
 
-output "app_url" {
-  description = "URL to access the application"
-  value       = "http://${aws_instance.app.public_ip}:${var.app_port}"
+output "instance_public_dns" {
+  description = "Public DNS name of the EC2 instance"
+  value       = aws_instance.app.public_dns
 }
 
-output "ssh_command" {
-  description = "SSH command to connect to the instance"
-  value       = "ssh -i <your-key>.pem ubuntu@${aws_instance.app.public_ip}"
+output "app_url" {
+  description = "URL to access the application"
+  value       = "http://${aws_instance.app.public_dns}:${var.app_port}"
+}
+
+output "ssm_command" {
+  description = "Command to open a shell on the instance via SSM Session Manager"
+  value       = "aws ssm start-session --target ${aws_instance.app.id} --region ${var.aws_region}"
 }

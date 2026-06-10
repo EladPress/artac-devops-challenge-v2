@@ -28,6 +28,8 @@ Thumbs.db
 node_modules/
 package-lock.json
 
+.terraform*
+terraform.tfstate*
 
 ######
 AI_assessment.md
