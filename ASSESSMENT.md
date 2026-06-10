@@ -18,6 +18,7 @@ I switched the health checks to poll `/ready` because it's the actual condition 
 
 ### Base image | Type: intentional tradeoff
 "[DECISIONS.md](DECISIONS.md)" explains under "Docker Image" that the base image is python:3.12 because the slim was causing issues with some native dependencies during `pip install`. I did not experience any issues, the slim image works just fine. In any case, the reduction in image size is significant and in my opinion is worth a bit of debugging, or a multi stage build.
+After verifying the image works, I locked the version of the base image so when it gets updated we will stay with the same older base image until we willingly update, to avoid unforseen changes.
 
 LATER NOTE: This also seemed to remove a CRITICAL vulnerability in the project. The slimmer image simply did not include it.
 
@@ -27,6 +28,13 @@ A .dockerignore file was missing, which caused a lot of needless file to be copi
 ### Single-stage build | Type: intentional tradeoff
 This is not actually a trade off, the image should not be built with another stage, as there isn't anything that needs to be compiled or built before copying everything into the final image.
 Building the project as a whl or any equivalent seems unnecessary because the project is very small and distributing the code itself is not relevant.
+
+### apt-get-upgrade in Dockerfile | Type: bug
+A new HIGH severity vulnerability appeared in my scans while working on the project. After finding out it was already fixed, I added ```apt-get upgrade -y``` in the Dockerfile to upgrade the problematic packages, as a new ubuntu image with the updated packages will probably take a few days. Generally this is a good practice to make sure images don't include already fixed vulnerabilities
+
+### Environment variables | Type: needs improvement
+I added `PYTHONUNBUFFERED=1`, `PYTHONDONTWRITEBYTECODE=1` and `PIP_DISABLE_PIP_VERSION_CHECK=1` to the Dockerfile.
+The important one is `PYTHONUNBUFFERED`: without it Python buffers stdout/stderr, so logs show up late and can be lost entirely if the process crashes — which makes the container painful to observe through `docker logs` or CloudWatch. `PYTHONDONTWRITEBYTECODE` stops Python from writing `.pyc` files into the container (pointless for an immutable image), and `PIP_DISABLE_PIP_VERSION_CHECK` removes the noisy "new pip available" output during builds.
 
 ## CI/CD
 
@@ -63,6 +71,10 @@ While the images are mostly running on amd64, A lot of developers use ARM based 
 But I decided to keep only building amd64 images because I reached the conclusion that the changed needed to make two images would mean a large change of the CI process, which I decided was outside of the scope of this mission.
 The reason the tradeoff is valid in my opinion is the production environments run on amd64 anyway, and Macs can run amd64 images via emulation (A simple flag in the docker run command allows Macs to run amd64 images).
 
+### Stubbed deploy job | Type: bug
+The `deploy` job in "[ci.yml](ci.yml)" was a no-op stub. "[DECISIONS.md](DECISIONS.md)" acknowledges it was left unwired. On top of being unimplemented, its comment said it should "SSH into the EC2 instance" — which contradicts the infrastructure work, since I removed SSH and moved instance access to AWS SSM Session Manager.
+I implemented the deploy job and made it look up the EC2 instance (if there is none nothing will be deployed), replace the image deployed with the one the build created, and makes sure the container is running and ready.
+
 ## Infrastructure
 
 ### Choice of deploying on EC2 | Type: intentional tradeoff
@@ -75,7 +87,7 @@ A fix was irrelevant because of the next change:
 
 ### Region-agnostic AMI | Type: needs improvement
 In "[main.tf](terraform/main.tf)" the AMI ID was hardcoded, while the AWS region wasn't. This works when not changing region from "us-east-1" but because of AMIs being region-specific, switching regions would not work.
-My solution was to get the ID of the Ubuntu image we require and then use it in the EC2 instance.
+My solution was to get the ID of the Ubuntu image we require (same locked version in each region) and then use it in the EC2 instance.
 
 ### Key pair handling | Type: needs improvement
 In order to deploy the application using Terraform, a key pair had to exist before. I think a good practice to handle this specifically would have been creating a key pair with this Terraform project.
