@@ -26,7 +26,7 @@ A .dockerignore file was missing, which caused a lot of needless file to be copi
 
 ### Single-stage build | Type: intentional tradeoff
 This is not actually a trade off, the image should not be built with another stage, as there isn't anything that needs to be compiled or built before copying everything into the final image.
-Building the project as a whl or any equivalent seems unneccessary because the project is very small and distributing the code itself is not relevant.
+Building the project as a whl or any equivalent seems unnecessary because the project is very small and distributing the code itself is not relevant.
 
 ## CI/CD
 
@@ -46,17 +46,17 @@ The Trivy job in "[ci.yml](ci.yml)" was watching the action's master branch, whi
 ### Non Existent Smoke Test | Type: needs improvement
 "[DECISIONS.md](DECISIONS.md)" mentions a "CI smoke test" but it didn't really exist in "[ci.yml](ci.yml)". There is of course the "Run Tests" job but it doesn't really qualify, as it only runs the python code, instead of testing the entire stack, which includes deploying the Docker Image. I added a smoke test job that deploys the image and checks all three endpoints.
 
-### Trivy ignores all severity vulnerabilies | Type: intentional tradeoff
-"[DECISIONS.md](DECISIONS.md)" mentions that Trivy was intentionally being made to ignore all vulnerabilites. This is a temporary fix only to pass the build, so I fixed this.
+### Trivy ignores all severity vulnerabilities | Type: intentional tradeoff
+"[DECISIONS.md](DECISIONS.md)" mentions that Trivy was intentionally being made to ignore all vulnerabilities. This is a temporary fix only to pass the build, so I fixed this.
 I believed HIGH and CRITICAL vulnerabilities should automatically fail the build and LOW and MEDIUM should pass the build but be reported.
 Because Trivy can't have a different exit code for different severities of vulnerabilities I divided the Trivy scan to two portions: one that does a full scan and uploads an artifact with the full results, and a second one that fails the build if a HIGH or CRITICAL vulnerability exists.
 I kept ignoring unfixed vulnerabilities, because these can't be actioned upon. This is a tradeoff I made for now, this is not set in stone, of course a vulnerability can be avoided instead of fixed.
 
 ### Fixed HIGH vulnerability | Type: bug
-While stopping Trivy from ignoring HIGH and CRITICAL vulnerabilites, a HIGH severity vulnerability was found in "starlette" which fastapi uses. As a fix, I upgraded fastapi to a version high enough that includes a fixed version of "starlette". I could have chosen the latest version of fastapi but I chose a more conservative version, as I felt this was outside the scope of the assignment.
+While stopping Trivy from ignoring HIGH and CRITICAL vulnerabilities, a HIGH severity vulnerability was found in "starlette" which fastapi uses. As a fix, I upgraded fastapi to a version high enough that includes a fixed version of "starlette". I could have chosen the latest version of fastapi but I chose a more conservative version, as I felt this was outside the scope of the assignment.
 
 ### Image naming convention | Type: Needs improvement
-This is an architecture choice of mine. I feel commit hashes as image tags are not human readable. Using Semantic Release, each release/prerelease iamge will have their semantic version as a tag which of course matches the git tag. All images will also have the tag: {BRANCH_NAME-BUILD_INCREMENT} and will have the label: org.opencontainers.image.revision=${commit_hash}
+This is an architecture choice of mine. I feel commit hashes as image tags are not human readable. Using Semantic Release, each release/prerelease image will have their semantic version as a tag which of course matches the git tag. All images will also have the tag: {BRANCH_NAME-BUILD_INCREMENT} and will have the label: org.opencontainers.image.revision=${commit_hash}
 
 ### Image only built for amd64 | Type: intentional tradeoff
 While the images are mostly running on amd64, A lot of developers use ARM based Macs, so I thought it important to include an amd64 native image along with the standard amd64 image.
