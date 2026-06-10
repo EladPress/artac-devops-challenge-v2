@@ -234,7 +234,7 @@ jobs:
   deploy:
     name: Deploy
     needs: [release, push]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: true ## github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -244,8 +244,6 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION || 'il-central-1' }}
       INSTANCE_NAME: sentiment-api-server
     steps:
-      # Without AWS credentials the job can't reach AWS. Skip cleanly instead of
-      # failing so the pipeline stays green until live deploy is configured.
       - name: Check deploy is configured
         id: gate
         run: |
@@ -269,10 +267,11 @@ jobs:
         run: |
           REG="${REGISTRY,,}"
           IMG="${IMAGE_NAME,,}"
+          SAFE_BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
           if [ -n "${{ needs.release.outputs.new_version }}" ]; then
             TAG="${{ needs.release.outputs.new_version }}"
           else
-            TAG="main-${{ github.run_number }}"
+            TAG="${SAFE_BRANCH}-${{ github.run_number }}"
           fi
           echo "IMAGE=${REG}/${IMG}:${TAG}" >> "$GITHUB_ENV"
           echo "Deploying image: ${REG}/${IMG}:${TAG}"
