@@ -18,6 +18,7 @@ I switched the health checks to poll `/ready` because it's the actual condition 
 
 ### Base image | Type: intentional tradeoff
 "[DECISIONS.md](DECISIONS.md)" explains under "Docker Image" that the base image is python:3.12 because the slim was causing issues with some native dependencies during `pip install`. I did not experience any issues, the slim image works just fine. In any case, the reduction in image size is significant and in my opinion is worth a bit of debugging, or a multi stage build.
+After verifying the image works, I locked the version of the base image so when it gets updated we will stay with the same older base image until we willingly update, to avoid unforseen changes.
 
 LATER NOTE: This also seemed to remove a CRITICAL vulnerability in the project. The slimmer image simply did not include it.
 
@@ -30,6 +31,10 @@ Building the project as a whl or any equivalent seems unnecessary because the pr
 
 ### apt-get-upgrade in Dockerfile | Type: bug
 A new HIGH severity vulnerability appeared in my scans while working on the project. After finding out it was already fixed, I added ```apt-get upgrade -y``` in the Dockerfile to upgrade the problematic packages, as a new ubuntu image with the updated packages will probably take a few days. Generally this is a good practice to make sure images don't include already fixed vulnerabilities
+
+### Environment variables | Type: needs improvement
+I added `PYTHONUNBUFFERED=1`, `PYTHONDONTWRITEBYTECODE=1` and `PIP_DISABLE_PIP_VERSION_CHECK=1` to the Dockerfile.
+The important one is `PYTHONUNBUFFERED`: without it Python buffers stdout/stderr, so logs show up late and can be lost entirely if the process crashes — which makes the container painful to observe through `docker logs` or CloudWatch. `PYTHONDONTWRITEBYTECODE` stops Python from writing `.pyc` files into the container (pointless for an immutable image), and `PIP_DISABLE_PIP_VERSION_CHECK` removes the noisy "new pip available" output during builds.
 
 ## CI/CD
 
