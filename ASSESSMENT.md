@@ -86,3 +86,7 @@ After closing SSH, port 8080 (the application) remains reachable from `0.0.0.0/0
 
 # Instance type unsupported in newer regions | Type: needs improvement
 When switching regions I noticed `t2.micro` didn't exist in the newer `il-central-1` region. In order to allow the application to run on more regions I changed the instance type to `t3.micro`.
+
+# Root volume oversized and unencrypted | Type: needs improvement
+The `root_block_device` in "[main.tf](terraform/main.tf)" requested a 20 GB volume and was not encrypted.
+I right-sized the root volume to 10 GB, and added `encrypted = true` for at-rest encryption.

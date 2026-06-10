@@ -100,9 +100,12 @@ resource "aws_instance" "app" {
     app_port     = var.app_port
   })
 
-  root_block_device { ## TODO: make sure a volume is needed, the application is supposed to be stateless...
-    volume_size = 20
+  # Root volume only (stateless app, no separate data volume). Right-sized for
+  # OS + Docker + image, on gp3, encrypted at rest.
+  root_block_device {
+    volume_size = 10
     volume_type = "gp3"
+    encrypted   = true
   }
 
   tags = {
