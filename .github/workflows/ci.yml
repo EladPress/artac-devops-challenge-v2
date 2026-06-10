@@ -262,19 +262,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Resolve image reference
-        if: steps.gate.outputs.enabled == 'true'
+      - name: Resolve image reference (version)
+        if: steps.gate.outputs.enabled == 'true' && needs.release.outputs.new_version != ''
+        run: |
+          REG="${REGISTRY,,}"
+          IMG="${IMAGE_NAME,,}"
+          TAG="${{ needs.release.outputs.new_version }}"
+          echo "IMAGE=${REG}/${IMG}:${TAG}" >> "$GITHUB_ENV"
+          echo "Deploying versioned image: ${REG}/${IMG}:${TAG}"
+
+      - name: Resolve image reference (branch fallback)
+        if: steps.gate.outputs.enabled == 'true' && needs.release.outputs.new_version == ''
         run: |
           REG="${REGISTRY,,}"
           IMG="${IMAGE_NAME,,}"
           SAFE_BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
-          if [ -n "${{ needs.release.outputs.new_version }}" ]; then
-            TAG="${{ needs.release.outputs.new_version }}"
-          else
-            TAG="${SAFE_BRANCH}-${{ github.run_number }}"
-          fi
+          TAG="${SAFE_BRANCH}-${{ github.run_number }}"
           echo "IMAGE=${REG}/${IMG}:${TAG}" >> "$GITHUB_ENV"
-          echo "Deploying image: ${REG}/${IMG}:${TAG}"
+          echo "Deploying branch image: ${REG}/${IMG}:${TAG}"
 
       - name: Find target instance
         if: steps.gate.outputs.enabled == 'true'
