@@ -28,6 +28,9 @@ A .dockerignore file was missing, which caused a lot of needless file to be copi
 This is not actually a trade off, the image should not be built with another stage, as there isn't anything that needs to be compiled or built before copying everything into the final image.
 Building the project as a whl or any equivalent seems unnecessary because the project is very small and distributing the code itself is not relevant.
 
+### apt-get-upgrade in Dockerfile | Type: bug
+A new HIGH severity vulnerability appeared in my scans while working on the project. After finding out it was already fixed, I added ```apt-get upgrade -y``` in the Dockerfile to upgrade the problematic packages, as a new ubuntu image with the updated packages will probably take a few days. Generally this is a good practice to make sure images don't include already fixed vulnerabilities
+
 ## CI/CD
 
 ### Image pushed before testing | Type: bug
