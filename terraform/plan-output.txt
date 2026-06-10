@@ -113,7 +113,7 @@ Terraform will perform the following actions:
           + "Project" = "sentiment-api"
         }
       + tenancy                              = (known after apply)
-      + user_data                            = "c19f49a8004bcf67fdd84bb69ca6f6f7a98e94e4"
+      + user_data                            = "744464deeb955114038f016b87acc0a4440d7973"
       + user_data_base64                     = (known after apply)
       + user_data_replace_on_change          = false
       + vpc_security_group_ids               = (known after apply)

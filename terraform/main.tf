@@ -13,16 +13,12 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Resolves the region-specific equivalent of ami-0c7217cdde317cfec
-# (Ubuntu 22.04 LTS, amd64, owned by Canonical) so the AMI is portable
-# across regions instead of being hardcoded to a us-east-1 ID.
 data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"]
+  owners = ["099720109477"]
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20260602"]
   }
 
   filter {
