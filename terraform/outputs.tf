@@ -8,9 +8,14 @@ output "instance_id" {
   value       = aws_instance.app.id
 }
 
+output "instance_public_dns" {
+  description = "Public DNS name of the EC2 instance"
+  value       = aws_instance.app.public_dns
+}
+
 output "app_url" {
   description = "URL to access the application"
-  value       = "http://${aws_instance.app.public_ip}:${var.app_port}"
+  value       = "http://${aws_instance.app.public_dns}:${var.app_port}"
 }
 
 output "ssm_command" {
