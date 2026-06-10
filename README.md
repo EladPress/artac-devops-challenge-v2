@@ -178,7 +178,22 @@ The pipeline ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on ev
 3. **test / security-scan / smoke-test** — run the unit tests, run a Trivy scan (fails on
    HIGH/CRITICAL, reports the rest), and start the container to verify all three endpoints respond.
 4. **push** — only after the above pass, tags and pushes the image to GHCR.
-5. **deploy** — gated to `main`; currently a documented placeholder (see [ASSESSMENT.md](ASSESSMENT.md)).
+5. **deploy** — on pushes to `main`, finds the running EC2 instance tagged
+   `sentiment-api-server` and rolls out the just-pushed image.
+
+### Deploy prerequisites
+
+The live deploy step is inactive until you configure AWS access in the repository
+(**Settings → Secrets and variables → Actions**):
+
+| Secret | Purpose |
+|--------|---------|
+| `AWS_ACCESS_KEY_ID` | Access key for an IAM principal allowed to call `ec2:DescribeInstances`, `ssm:SendCommand`, and `ssm:GetCommandInvocation` |
+| `AWS_SECRET_ACCESS_KEY` | Matching secret access key |
+
+The deploy region is set in the workflow (`AWS_REGION`, currently `il-central-1`) and
+must match the region the instance runs in. Without the secrets, the pipeline still
+builds, tests, scans, and pushes the image — only the live rollout is skipped.
 
 See [ASSESSMENT.md](ASSESSMENT.md) for the rationale behind each pipeline decision and
 [AI_WORKFLOW.md](AI_WORKFLOW.md) for how AI tooling was used during this work.
