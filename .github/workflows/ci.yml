@@ -241,7 +241,7 @@ jobs:
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ vars.AWS_REGION || 'il-central-1' }}
+      AWS_REGION: 'il-central-1'
       INSTANCE_NAME: sentiment-api-server
     steps:
       - name: Check deploy is configured
@@ -256,7 +256,7 @@ jobs:
 
       - name: Configure AWS credentials
         if: steps.gate.outputs.enabled == 'true'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
