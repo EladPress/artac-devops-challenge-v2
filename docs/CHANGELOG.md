@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 This file is maintained automatically by [semantic-release](https://github.com/semantic-release/semantic-release).
 
+## [1.2.1](https://github.com/EladPress/artac-devops-challenge-v2/compare/v1.2.0...v1.2.1) (2026-06-10)
+
+### Bug Fixes
+
+* Add encryption for the root block device and downsized to 10GB ([36cea3b](https://github.com/EladPress/artac-devops-challenge-v2/commit/36cea3b4e7d3106eac3a185f026ca19afa3e43b9))
+* changed app_url output in Terraform to public dns ([1b4dfd0](https://github.com/EladPress/artac-devops-challenge-v2/commit/1b4dfd0e478cbbebae0892fdbde44430e86b9d23))
+* Fixed "Delete image artifact" step deleting artifacts from other builds ([de33ecf](https://github.com/EladPress/artac-devops-challenge-v2/commit/de33ecfd06d966b6b9b0711b4f6cb31db5d27198))
+* Fixed deploying on other regions because of a hardcoded AMI ID ([91c46d4](https://github.com/EladPress/artac-devops-challenge-v2/commit/91c46d4df78c0e4461d40d5ae49ce321df3764d5))
+* Validated Terraform implementation. Moved to using SSM instead of SSH. Made it possible to switch regions. ([bdaf4aa](https://github.com/EladPress/artac-devops-challenge-v2/commit/bdaf4aa854d0df0b9817346393f9b681b5e82c2e))
+
 ## [1.2.0](https://github.com/EladPress/artac-devops-challenge-v2/compare/v1.1.0...v1.2.0) (2026-06-09)
 
 ### Features
