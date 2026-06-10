@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 This file is maintained automatically by [semantic-release](https://github.com/semantic-release/semantic-release).
 
+## [1.3.1](https://github.com/EladPress/artac-devops-challenge-v2/compare/v1.3.0...v1.3.1) (2026-06-10)
+
+### Bug Fixes
+
+* Added AI_WORKFLOW.md ([69ec3cb](https://github.com/EladPress/artac-devops-challenge-v2/commit/69ec3cbe18d941ad6fc0607fba180f67067f6576))
+* Improved Dockerfile to make it more production ready ([e760ead](https://github.com/EladPress/artac-devops-challenge-v2/commit/e760ead7c97531fa4cafc83d87b166685e83f948))
+* Locked AMI version ([3f6e20c](https://github.com/EladPress/artac-devops-challenge-v2/commit/3f6e20cea050a404d08de60d4207c427ac4d27ae))
+* Upgraded configure-aws-credengials version to fix NODE20 being deprecated ([ae0aa3c](https://github.com/EladPress/artac-devops-challenge-v2/commit/ae0aa3cf6f73c188e3b51fc02863efada7ba80e3))
+
 ## [1.3.0](https://github.com/EladPress/artac-devops-challenge-v2/compare/v1.2.1...v1.3.0) (2026-06-10)
 
 ### Features
