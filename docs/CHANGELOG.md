@@ -3,6 +3,18 @@
 All notable changes to this project are documented here.
 This file is maintained automatically by [semantic-release](https://github.com/semantic-release/semantic-release).
 
+## [1.3.0](https://github.com/EladPress/artac-devops-challenge-v2/compare/v1.2.1...v1.3.0) (2026-06-10)
+
+### Features
+
+* Adding 'deploy' job to ci.yml which will deploy a new image on an existing EC2 instance ([034456b](https://github.com/EladPress/artac-devops-challenge-v2/commit/034456ba208f172d6cdb7233f017e1114156a4bd))
+
+### Bug Fixes
+
+* Added plan-output.txt as a deliverable ([07ec872](https://github.com/EladPress/artac-devops-challenge-v2/commit/07ec8723e7eaa1f65b191021a0ec56cc208a8e6e))
+* Fixed typos and formatting in ASSESSMENT.md ([73777ae](https://github.com/EladPress/artac-devops-challenge-v2/commit/73777ae2bca19ff1e36954851c07b9210a556734))
+* fixing CVE-2026-45447 by adding apt-get upgrade to Dockerfile that will upgrade from vulnerable versions ([5b8823c](https://github.com/EladPress/artac-devops-challenge-v2/commit/5b8823cbff8241a23036ef65258e3c16ba57f2d3))
+
 ## [1.2.1](https://github.com/EladPress/artac-devops-challenge-v2/compare/v1.2.0...v1.2.1) (2026-06-10)
 
 ### Bug Fixes
