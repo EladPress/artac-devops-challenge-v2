@@ -73,3 +73,16 @@ A fix was irrelevant because of the next change:
 # Region-agnostic AMI | Type: needs improvement
 In "[main.tf](terraform/main.tf)" the AMI ID was hardcoded, while the AWS region wasn't. This works when not changing region from "us-east-1" but because of AMIs being region-specific, switching regions would not work.
 My solution was to get the ID of the Ubuntu image we require and then use it in the EC2 instance.
+
+# Key pair handling | Type: needs improvement
+In order to deploy the application using Terraform, a key pair had to exist before. I think a good practice to handle this specifically would have been creating a key pair with this Terraform project.
+Instead I removed the key pair because the solution to the next problem makes this solution irrelevant:
+
+# SSH ingress open wide | Type: bug
+The security group in "[main.tf](terraform/main.tf)" allowed SSH (port 22) from `0.0.0.0/0`. "[DECISIONS.md](DECISIONS.md)" admits SSH was left open. Instead of narrowing down the CIDR, I removed SSH access and moved to accessing the instance using AWS SSM Session Manager
+
+# App port left open | Type: intentional tradeoff
+After closing SSH, port 8080 (the application) remains reachable from `0.0.0.0/0`. This is intentional: it is a public API and locking it to a single IP would defeat its purpose, unlike SSH which has no legitimate public need. I made the allowed range a variable (`app_allowed_cidrs`, default `0.0.0.0/0`) so it can be scoped down per environment without a code change.
+
+# Instance type unsupported in newer regions | Type: needs improvement
+When switching regions I noticed `t2.micro` didn't exist in the newer `il-central-1` region. In order to allow the application to run on more regions I changed the instance type to `t3.micro`.

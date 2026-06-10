@@ -13,7 +13,7 @@ output "app_url" {
   value       = "http://${aws_instance.app.public_ip}:${var.app_port}"
 }
 
-output "ssh_command" {
-  description = "SSH command to connect to the instance"
-  value       = "ssh -i <your-key>.pem ubuntu@${aws_instance.app.public_ip}"
+output "ssm_command" {
+  description = "Command to open a shell on the instance via SSM Session Manager"
+  value       = "aws ssm start-session --target ${aws_instance.app.id} --region ${var.aws_region}"
 }

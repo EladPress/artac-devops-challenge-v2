@@ -40,16 +40,10 @@ resource "aws_security_group" "app" {
     from_port   = var.app_port
     to_port     = var.app_port
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.app_allowed_cidrs
   }
 
-  ingress {
-    description = "SSH access"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # No SSH ingress: instance access is via SSM Session Manager (outbound 443 only).
 
   egress {
     from_port   = 0
@@ -64,10 +58,41 @@ resource "aws_security_group" "app" {
   }
 }
 
+# IAM role granting the instance SSM access, so operators connect via
+# Session Manager instead of SSH. AmazonSSMManagedInstanceCore is the AWS
+# managed policy that lets the SSM Agent register and broker sessions.
+resource "aws_iam_role" "ssm" {
+  name = "${var.project_name}-ssm-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+
+  tags = {
+    Name    = "${var.project_name}-ssm-role"
+    Project = var.project_name
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.ssm.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ssm" {
+  name = "${var.project_name}-ssm-profile"
+  role = aws_iam_role.ssm.name
+}
+
 resource "aws_instance" "app" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
-  key_name               = var.ssh_key_name
+  iam_instance_profile   = aws_iam_instance_profile.ssm.name
   vpc_security_group_ids = [aws_security_group.app.id]
 
   user_data = templatefile("${path.module}/user-data.sh", {
@@ -75,7 +100,7 @@ resource "aws_instance" "app" {
     app_port     = var.app_port
   })
 
-  root_block_device {
+  root_block_device { ## TODO: make sure a volume is needed, the application is supposed to be stateless...
     volume_size = 20
     volume_type = "gp3"
   }
